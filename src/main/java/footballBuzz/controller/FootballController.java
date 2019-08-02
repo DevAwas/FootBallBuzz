@@ -1,17 +1,22 @@
 package footballBuzz.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import footballBuzz.errorhandling.ErrorResponse;
 import footballBuzz.model.League;
 import footballBuzz.model.Standing;
-import footballBuzz.model.Team;
 import footballBuzz.service.FootballService;
 import reactor.core.publisher.Flux;
+
 
 @RestController
 @RequestMapping("/football")
@@ -42,6 +47,14 @@ public class FootballController {
 		return FootballService.findStandingsByCLTNames(countryName, leagueName, teamName);
 	}
 	
+	
+	// more exceptions can be added per use case in similar fashion
+	@ExceptionHandler(Exception.class)
+	  ResponseEntity<ErrorResponse> handleIllegalAccessException() {
+	    HttpHeaders headers = new HttpHeaders();
+	    headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+	    return new ResponseEntity<ErrorResponse>((new ErrorResponse("Sorry for the inconvienince , Please try again later!")), headers, HttpStatus.NOT_FOUND);
+	  }
 	
 	
 

@@ -7,11 +7,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import footballBuzz.configuration.BasicConfiguration;
+import footballBuzz.errorhandling.ErrorResponse;
 import footballBuzz.model.Country;
 import footballBuzz.model.League;
 import footballBuzz.model.Standing;
@@ -34,6 +37,8 @@ public class FootballServiceImpl implements FootballService {
 	private static final String STANDINGS_URI = "https://apiv2.apifootball.com/?action=get_standings&league_id=";
 
 	private static final String TEAMS_URI = "https://apiv2.apifootball.com/?action=get_standings&league_id=";
+
+	private static final int ERROR_CODE = 404;
 
 	ConnectionProvider fixedPool = ConnectionProvider.fixed("fixedPool", 5, 5000);
 	HttpClient httpClient = HttpClient.create(fixedPool);
@@ -61,8 +66,6 @@ public class FootballServiceImpl implements FootballService {
 
 	@Override
 	public Flux<League> findLeaguesByCountryId(String countryid) {
-
-		
 
 		Flux<Country> countryDetails = webClient.get().uri(COUNTRY_URI + configuration.getApikey())
 				.accept(MediaType.APPLICATION_JSON).retrieve().onStatus(HttpStatus::isError, clientResponse -> {
@@ -140,13 +143,17 @@ public class FootballServiceImpl implements FootballService {
 
 	@Override
 	public Flux<Standing> findStandingsByCLNames(String countryName, String leagueName) {
+
+		Flux<Standing> standingDetailswithCid = null;
+
 		Flux<Country> countryDetails = webClient.get().uri(COUNTRY_URI + configuration.getApikey())
 				.accept(MediaType.APPLICATION_JSON).retrieve().onStatus(HttpStatus::isError, clientResponse -> {
 					LOGGER.error("Error while calling endpoint {} with status code {}", clientResponse.statusCode());
 					throw new RuntimeException("Error while calling  countries endpoint");
 				}).bodyToFlux(Country.class);
-
+		
 		// filter by country name
+
 
 		Flux<Country> filteredCountryDetails = countryDetails.filter(x -> x.getCountry_name().equals(countryName));
 		Flux<League> leagueDetails = filteredCountryDetails.flatMap(x -> findLeaguesByCountryId(x.getCountry_id()));
@@ -157,8 +164,7 @@ public class FootballServiceImpl implements FootballService {
 		Flux<Standing> standingDetails = filteredLeagueDetails
 				.flatMap(entry -> getStandingsByLeagueId(entry.getLeague_id()));
 		Mono<String> countryID = getCountryIdfromCountryName(filteredCountryDetails);
-
-		Flux<Standing> standingDetailswithCid = standingDetails.flatMap(obj -> {
+		standingDetailswithCid = standingDetails.flatMap(obj -> {
 			return countryID.map(x -> {
 				obj.setCountry_id(x);
 				return obj;
@@ -166,7 +172,10 @@ public class FootballServiceImpl implements FootballService {
 		});
 
 		return standingDetailswithCid;
+
 	}
+	
+	
 
 	@Override
 	public Flux<Standing> findStandingsByCLTNames(String countryName, String leagueName, String teamName) {
