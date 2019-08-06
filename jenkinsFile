@@ -1,0 +1,30 @@
+pipeline {
+    agent any
+    stages {
+        stage('Build footballBuzz Jar') {
+            steps{
+             script {
+             
+             sh "cd footballBuzz && ./gradlew clean build"
+              }
+            }
+        }
+        stage('Deploy footballBuzz Jar') {
+            steps {
+                sh '''#!/bin/bash
+                
+                
+                    JENKINS_APP_HOME="/opt/bitnami/apps/jenkins/jenkins_home/standings_pipeliene/footballBuzz" 
+                    EC2_HOSTNAME="ec2-13-58-209-5.us-east-2.compute.amazonaws.com"
+
+                    echo STEP: "making leaguestandings directory in ec2 instance"
+                     ssh  -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -t -i ~/.ssh/jenkins.pem ubuntu@\$EC2_HOSTNAME  mkdir -p /home/ubuntu/leaguestandings
+
+                    echo "STEP: copying latest jar to destination server"
+                     sudo scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ~/.ssh/jenkins.pem \$JENKINS_APP_HOME/build/libs/footballBuzz-0.1.0.jar ubuntu@\$EC2_HOSTNAME:/home/ubuntu/leaguestandings
+                
+               }
+            }
+          }
+                
+       }
